@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  provider      String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastSignIn    DateTime? @updatedAt @map("last_sign_in")
+  accounts      Account[]
+  sessions      Session[]
+  blogs         Blog[]
+  blogLikes     BlogLike[]
+  blogComments  BlogComment[]
+  communityPosts CommunityPost[]
+  communityPostLikes CommunityPostLike[]
+  communityPostComments CommunityPostComment[]
+  progress      UserProgress[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String?
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Blog {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  authorId  String   @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     BlogLike[]
+  comments  BlogComment[]
+
+  @@map("blogs")
+}
+
+model BlogLike {
+  id        String   @id @default(uuid())
+  blogId    String   @map("blog_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([blogId, userId])
+  @@map("blog_likes")
+}
+
+model BlogComment {
+  id        String   @id @default(uuid())
+  blogId    String   @map("blog_id")
+  userId    String   @map("user_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("blog_comments")
+}
+
+model CommunityPost {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  authorId  String   @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     CommunityPostLike[]
+  comments  CommunityPostComment[]
+
+  @@map("community_posts")
+}
+
+model CommunityPostLike {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("community_post_likes")
+}
+
+model CommunityPostComment {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("community_post_comments")
+}
+
+model PracticeProblem {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  difficulty  String
+  topic       String
+  url         String?
+  userProgress UserProgress[]
+
+  @@map("practice_problems")
+}
+
+model UserProgress {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  problemId   String   @map("problem_id")
+  completed   Boolean  @default(false)
+  completedAt DateTime? @map("completed_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem     PracticeProblem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@map("user_progress")
+}
