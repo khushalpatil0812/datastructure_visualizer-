@@ -5,10 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CheckCircle2, BookOpen, MessageSquare, BarChart3 } from "lucide-react"
-import * as practiceService from "@/lib/practice"
-import * as blogService from "@/lib/blog"
-import * as communityService from "@/lib/community"
+import { CheckCircle2, BookOpen, MessageSquare, BarChart3, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -17,16 +15,55 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  const userId = session.user.id
-  const progress = await practiceService.getUserProgress(userId)
-  const userBlogs = await blogService.getBlogs(1, 5, userId)
-  const userPosts = await communityService.getPosts(1, 5, userId)
+  // Default empty data in case of errors
+  let progress = {
+    summary: { total_problems: 0, completed_problems: 0 },
+    byTopic: [],
+  }
+  let userBlogs = { blogs: [] }
+  let userPosts = { posts: [] }
+  let hasErrors = false
+
+  try {
+    // We'll import these dynamically to prevent the entire page from failing
+    const practiceService = await import("@/lib/practice")
+    progress = await practiceService.getUserProgress(session.user.id)
+  } catch (error) {
+    console.error("Error fetching practice data:", error)
+    hasErrors = true
+  }
+
+  try {
+    const blogService = await import("@/lib/blog")
+    userBlogs = await blogService.getBlogs(1, 5, session.user.id)
+  } catch (error) {
+    console.error("Error fetching blog data:", error)
+    hasErrors = true
+  }
+
+  try {
+    const communityService = await import("@/lib/community")
+    userPosts = await communityService.getPosts(1, 5, session.user.id)
+  } catch (error) {
+    console.error("Error fetching community data:", error)
+    hasErrors = true
+  }
 
   const completionPercentage =
     Math.round((progress.summary.completed_problems / progress.summary.total_problems) * 100) || 0
 
   return (
     <div className="container py-8">
+      {hasErrors && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            There was an error loading some of your dashboard data. Some information may be incomplete.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <div className="flex items-center gap-3">
@@ -69,7 +106,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Blog Posts</CardDescription>
-            <CardTitle className="text-3xl">{userBlogs.blogs.length}</CardTitle>
+            <CardTitle className="text-3xl">{userBlogs.blogs?.length || 0}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-sm text-muted-foreground">
@@ -81,7 +118,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Discussions</CardDescription>
-            <CardTitle className="text-3xl">{userPosts.posts.length}</CardTitle>
+            <CardTitle className="text-3xl">{userPosts.posts?.length || 0}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-sm text-muted-foreground">
@@ -126,30 +163,38 @@ export default async function DashboardPage() {
 
         <TabsContent value="progress">
           <div className="grid gap-4">
-            {progress.byTopic.map((topic: any) => {
-              const topicPercentage = Math.round((topic.completed_problems / topic.total_problems) * 100) || 0
-              return (
-                <Card key={topic.topic}>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between">
-                      <CardTitle>{topic.topic}</CardTitle>
-                      <span className="text-sm font-medium">
-                        {topic.completed_problems}/{topic.total_problems}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <Progress value={topicPercentage} className="h-2" />
-                  </CardContent>
-                </Card>
-              )
-            })}
+            {progress.byTopic && progress.byTopic.length > 0 ? (
+              progress.byTopic.map((topic: any) => {
+                const topicPercentage = Math.round((topic.completed_problems / topic.total_problems) * 100) || 0
+                return (
+                  <Card key={topic.topic}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between">
+                        <CardTitle>{topic.topic}</CardTitle>
+                        <span className="text-sm font-medium">
+                          {topic.completed_problems}/{topic.total_problems}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <Progress value={topicPercentage} className="h-2" />
+                    </CardContent>
+                  </Card>
+                )
+              })
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">No topic progress data available.</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="blogs">
           <div className="grid gap-4">
-            {userBlogs.blogs.length > 0 ? (
+            {userBlogs.blogs && userBlogs.blogs.length > 0 ? (
               userBlogs.blogs.map((blog: any) => (
                 <Card key={blog.id}>
                   <CardHeader>
@@ -173,7 +218,7 @@ export default async function DashboardPage() {
 
         <TabsContent value="discussions">
           <div className="grid gap-4">
-            {userPosts.posts.length > 0 ? (
+            {userPosts.posts && userPosts.posts.length > 0 ? (
               userPosts.posts.map((post: any) => (
                 <Card key={post.id}>
                   <CardHeader>

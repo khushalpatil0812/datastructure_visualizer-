@@ -27,14 +27,52 @@ export default async function AdminLayout({
 }) {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user?.id) {
+  console.log("Admin Layout - Session:", session) // Debug log
+
+  if (!session?.user?.email) {
+    console.log("Admin Layout - No session, redirecting to login")
     redirect("/login")
   }
 
-  // Check if user is admin
-  const [user] = (await db.query("SELECT is_admin FROM users WHERE id = ?", [session.user.id])) as any[]
+  // Direct database check for admin status
+  try {
+    const result = (await db.query("SELECT is_admin FROM users WHERE email = ?", [session.user.email])) as any
 
-  if (!user || !user.is_admin) {
+    console.log("Admin Layout - DB Query Result:", result) // Debug log
+    console.log("Admin Layout - DB Query Result Type:", typeof result) // Debug log
+    console.log("Admin Layout - DB Query Result Structure:", JSON.stringify(result)) // Debug log
+
+    // Based on the logs, it seems the result might be directly the user object
+    // Let's handle both possible formats
+    let isAdmin = false
+
+    if (Array.isArray(result) && result.length > 0) {
+      // If result is an array (like [rows, fields])
+      const rows = result[0]
+      console.log("Admin Layout - Rows:", rows) // Debug log
+
+      if (Array.isArray(rows) && rows.length > 0) {
+        // If rows is an array of user objects
+        isAdmin = rows[0]?.is_admin === 1
+      } else if (rows && typeof rows === "object") {
+        // If rows is directly the user object
+        isAdmin = rows.is_admin === 1
+      }
+    } else if (result && typeof result === "object") {
+      // If result is directly the user object
+      isAdmin = result.is_admin === 1
+    }
+
+    console.log("Admin Layout - Is Admin:", isAdmin) // Debug log
+
+    if (!isAdmin) {
+      console.log("Admin Layout - Not admin, redirecting to home")
+      redirect("/")
+    }
+
+    console.log("Admin Layout - Admin check passed, rendering admin layout")
+  } catch (error) {
+    console.error("Error checking admin status:", error)
     redirect("/")
   }
 

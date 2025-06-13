@@ -5,6 +5,11 @@ export async function getBlogs(page = 1, limit = 10, userId?: string) {
   const offset = (page - 1) * limit
 
   try {
+    // Ensure page and limit are integers
+    const pageNum = Number.parseInt(String(page), 10) || 1
+    const limitNum = Number.parseInt(String(limit), 10) || 10
+    const offsetNum = (pageNum - 1) * limitNum
+
     let query = `
       SELECT b.*, u.name as author_name, u.image as author_image,
       (SELECT COUNT(*) FROM blog_likes WHERE blog_id = b.id) as like_count,
@@ -20,8 +25,8 @@ export async function getBlogs(page = 1, limit = 10, userId?: string) {
       params.push(userId)
     }
 
-    query += ` ORDER BY b.created_at DESC LIMIT ? OFFSET ?`
-    params.push(limit, offset)
+    // Use direct integer values instead of placeholders for LIMIT and OFFSET
+    query += ` ORDER BY b.created_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`
 
     const blogs = await db.query(query, params)
 
@@ -38,10 +43,10 @@ export async function getBlogs(page = 1, limit = 10, userId?: string) {
     return {
       blogs,
       pagination: {
-        total: total[0].count,
-        page,
-        limit,
-        pages: Math.ceil(total[0].count / limit),
+        total: total[0]?.count || 0,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil((total[0]?.count || 0) / limitNum),
       },
     }
   } catch (error) {

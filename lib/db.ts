@@ -14,7 +14,24 @@ const pool = mysql.createPool({
 // Helper function to execute SQL queries
 export async function query(sql: string, params: any[] = []) {
   try {
-    const [rows] = await pool.execute(sql, params)
+    // Handle empty params array
+    if (!params || params.length === 0) {
+      const [rows] = await pool.query(sql)
+      return rows
+    }
+
+    // Sanitize parameters
+    const sanitizedParams = params.map((param) => {
+      if (param === undefined) return null
+      if (typeof param === "number") return param
+      return param
+    })
+
+    // Log the query and parameters for debugging
+    console.log("Executing SQL:", sql)
+    console.log("With parameters:", sanitizedParams)
+
+    const [rows] = await pool.execute(sql, sanitizedParams)
     return rows
   } catch (error) {
     console.error("Database query error:", error)

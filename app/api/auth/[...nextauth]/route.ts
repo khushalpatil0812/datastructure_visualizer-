@@ -2,15 +2,11 @@ import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import GitHubProvider from "next-auth/providers/github"
 import LinkedInProvider from "next-auth/providers/linkedin"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { PrismaClient } from "@prisma/client"
 import { v4 as uuidv4 } from "uuid"
 import db from "@/lib/db"
+import type { NextAuthOptions } from "next-auth"
 
-const prisma = new PrismaClient()
-
-export const authOptions = {
-  adapter: PrismaAdapter(prisma),
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -75,13 +71,16 @@ export const authOptions = {
         return false
       }
     },
-    async session({ session, user }: { session: any; user: any }) {
+    async session({ session, token }: { session: any; token: any }) {
       if (session?.user?.email) {
         try {
-          const [dbUser] = (await db.query("SELECT id FROM users WHERE email = ?", [session.user.email])) as any[]
+          const [dbUser] = (await db.query("SELECT id, is_admin FROM users WHERE email = ?", [
+            session.user.email,
+          ])) as any[]
 
-          if (dbUser && dbUser.length > 0) {
+          if (dbUser) {
             session.user.id = dbUser.id
+            session.user.is_admin = Boolean(dbUser.is_admin)
           }
         } catch (error) {
           console.error("Error fetching user session:", error)
@@ -89,11 +88,21 @@ export const authOptions = {
       }
       return session
     },
+    async jwt({ token, user, account }: { token: any; user: any; account: any }) {
+      if (user) {
+        token.id = user.id
+      }
+      return token
+    },
   },
   pages: {
     signIn: "/login",
   },
   secret: process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: "jwt",
+  },
+  debug: process.env.NODE_ENV === "development",
 }
 
 const handler = NextAuth(authOptions)

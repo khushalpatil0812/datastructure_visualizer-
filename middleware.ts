@@ -10,30 +10,26 @@ export async function middleware(request: NextRequest) {
   const isAdminPath = path.startsWith("/admin")
 
   if (isAdminPath) {
-    const session = await getToken({
+    const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     })
 
+    console.log("Middleware - Token:", token) // Debug log
+
     // Check if user is authenticated and is an admin
-    if (!session || !session.is_admin) {
+    if (!token) {
+      console.log("Middleware - No token, redirecting to login")
       return NextResponse.redirect(new URL("/login", request.url))
     }
-  }
 
-  // Track page visit for analytics
-  if (path !== "/_next" && !path.includes(".") && !path.startsWith("/api")) {
-    try {
-      // We'll use a server action to log the visit
-      // This is just a placeholder - the actual tracking happens in the layout
-    } catch (error) {
-      console.error("Error tracking page visit:", error)
-    }
+    // For now, allow access if authenticated (we'll check admin status in the layout)
+    return NextResponse.next()
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/admin/:path*"],
 }

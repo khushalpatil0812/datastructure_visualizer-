@@ -23,29 +23,31 @@ export async function trackPageVisit(data: {
       ],
     )
 
-    // Update daily stats
+    // Update daily stats using REPLACE INTO to handle duplicates
     const today = new Date().toISOString().split("T")[0]
 
-    // Check if we have a record for today
-    const [existingRecord] = (await db.query("SELECT * FROM daily_stats WHERE date = ?", [today])) as any[]
-
-    if (existingRecord && existingRecord.length > 0) {
-      // Update existing record
-      await db.query(
+    try {
+      // First try to update if exists
+      const updateResult = (await db.query(
         `UPDATE daily_stats 
          SET total_visits = total_visits + 1,
              unique_visitors = unique_visitors + IF(? IS NULL, 0, 1),
              new_users = new_users + IF(? IS NULL, 0, 1)
          WHERE date = ?`,
         [data.user_id, data.user_id, today],
-      )
-    } else {
-      // Create new record for today
-      await db.query(
-        `INSERT INTO daily_stats (id, date, total_visits, unique_visitors, new_users)
-         VALUES (?, ?, 1, ?, ?)`,
-        [uuidv4(), today, data.user_id ? 1 : 0, data.user_id ? 1 : 0],
-      )
+      )) as any
+
+      // If no rows were updated, insert new record
+      if (updateResult.affectedRows === 0) {
+        await db.query(
+          `INSERT IGNORE INTO daily_stats (id, date, total_visits, unique_visitors, new_users)
+           VALUES (?, ?, 1, ?, ?)`,
+          [uuidv4(), today, data.user_id ? 1 : 0, data.user_id ? 1 : 0],
+        )
+      }
+    } catch (error) {
+      console.error("Error updating daily stats:", error)
+      // Continue execution even if daily stats update fails
     }
 
     return { success: true }
