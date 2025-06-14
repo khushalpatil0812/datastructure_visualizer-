@@ -5,10 +5,19 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "../api/auth/[...nextauth]/route"
 import * as communityService from "@/lib/community"
 
+// Helper type for user with id
+type AuthenticatedUser = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+};
+
 export async function createPost(formData: FormData) {
   const session = await getServerSession(authOptions)
+  const user = session?.user as AuthenticatedUser | undefined
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return { error: "You must be logged in to create a post" }
   }
 
@@ -23,7 +32,7 @@ export async function createPost(formData: FormData) {
     const result = await communityService.createPost({
       title,
       content,
-      authorId: session.user.id,
+      authorId: user.id,
     })
 
     revalidatePath("/community")
@@ -36,8 +45,9 @@ export async function createPost(formData: FormData) {
 
 export async function updatePost(postId: string, formData: FormData) {
   const session = await getServerSession(authOptions)
+  const user = session?.user as AuthenticatedUser | undefined
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return { error: "You must be logged in to update a post" }
   }
 
@@ -62,8 +72,9 @@ export async function updatePost(postId: string, formData: FormData) {
 
 export async function deletePost(postId: string) {
   const session = await getServerSession(authOptions)
+  const user = session?.user as AuthenticatedUser | undefined
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return { error: "You must be logged in to delete a post" }
   }
 
@@ -80,13 +91,14 @@ export async function deletePost(postId: string) {
 
 export async function likePost(postId: string) {
   const session = await getServerSession(authOptions)
+  const user = session?.user as AuthenticatedUser | undefined
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return { error: "You must be logged in to like a post" }
   }
 
   try {
-    const result = await communityService.likePost(postId, session.user.id)
+    const result = await communityService.likePost(postId, user.id)
 
     revalidatePath(`/community/${postId}`)
     return result
@@ -98,8 +110,9 @@ export async function likePost(postId: string) {
 
 export async function commentOnPost(postId: string, formData: FormData) {
   const session = await getServerSession(authOptions)
+  const user = session?.user as AuthenticatedUser | undefined
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return { error: "You must be logged in to comment on a post" }
   }
 
@@ -110,7 +123,7 @@ export async function commentOnPost(postId: string, formData: FormData) {
   }
 
   try {
-    await communityService.commentOnPost(postId, session.user.id, content)
+    await communityService.commentOnPost(postId, user.id, content)
 
     revalidatePath(`/community/${postId}`)
     return { success: true }

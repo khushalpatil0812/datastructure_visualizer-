@@ -1,4 +1,5 @@
-import mysql from "mysql2/promise"
+// lib/db.ts
+import mysql from "mysql2/promise";
 
 // Create a connection pool
 const pool = mysql.createPool({
@@ -9,37 +10,27 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-})
+});
 
 // Helper function to execute SQL queries
-export async function query(sql: string, params: any[] = []) {
+async function query<T = mysql.RowDataPacket[]>(sql: string, params: any[] = []): Promise<T> {
   try {
-    // Handle empty params array
-    if (!params || params.length === 0) {
-      const [rows] = await pool.query(sql)
-      return rows
-    }
-
-    // Sanitize parameters
     const sanitizedParams = params.map((param) => {
-      if (param === undefined) return null
-      if (typeof param === "number") return param
-      return param
-    })
+      if (param === undefined) return null;
+      return param;
+    });
 
-    // Log the query and parameters for debugging
-    console.log("Executing SQL:", sql)
-    console.log("With parameters:", sanitizedParams)
+    console.log("Executing SQL:", sql);
+    console.log("With parameters:", sanitizedParams);
 
-    const [rows] = await pool.execute(sql, sanitizedParams)
-    return rows
+    const [rows] = await pool.query<mysql.RowDataPacket[]>(sql, sanitizedParams);
+    return rows as T;
   } catch (error) {
-    console.error("Database query error:", error)
-    throw error
+    console.error("Database query error:", error);
+    throw error;
   }
 }
 
-// Singleton pattern to ensure we only create one pool
-export default {
-  query,
-}
+// Export as default
+const db = { query };
+export default db;

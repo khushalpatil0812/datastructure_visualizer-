@@ -7,8 +7,9 @@ import * as blogService from "@/lib/blog"
 
 export async function createBlog(formData: FormData) {
   const session = await getServerSession(authOptions)
+  const userId = session?.user ? (session.user as { id: string }).id : null
 
-  if (!session?.user?.id) {
+  if (!userId) {
     return { error: "You must be logged in to create a blog post" }
   }
 
@@ -23,7 +24,7 @@ export async function createBlog(formData: FormData) {
     const result = await blogService.createBlog({
       title,
       content,
-      authorId: session.user.id,
+      authorId: userId,
     })
 
     revalidatePath("/blog")
@@ -36,8 +37,9 @@ export async function createBlog(formData: FormData) {
 
 export async function updateBlog(blogId: string, formData: FormData) {
   const session = await getServerSession(authOptions)
+  const userId = session?.user ? (session.user as { id: string }).id : null
 
-  if (!session?.user?.id) {
+  if (!userId) {
     return { error: "You must be logged in to update a blog post" }
   }
 
@@ -62,8 +64,9 @@ export async function updateBlog(blogId: string, formData: FormData) {
 
 export async function deleteBlog(blogId: string) {
   const session = await getServerSession(authOptions)
+  const userId = session?.user ? (session.user as { id: string }).id : null
 
-  if (!session?.user?.id) {
+  if (!userId) {
     return { error: "You must be logged in to delete a blog post" }
   }
 
@@ -80,13 +83,14 @@ export async function deleteBlog(blogId: string) {
 
 export async function likeBlog(blogId: string) {
   const session = await getServerSession(authOptions)
+  const userId = session?.user ? (session.user as { id: string }).id : null
 
-  if (!session?.user?.id) {
+  if (!userId) {
     return { error: "You must be logged in to like a blog post" }
   }
 
   try {
-    const result = await blogService.likeBlog(blogId, session.user.id)
+    const result = await blogService.likeBlog(blogId, userId)
 
     revalidatePath(`/blog/${blogId}`)
     return result
@@ -98,8 +102,9 @@ export async function likeBlog(blogId: string) {
 
 export async function commentOnBlog(blogId: string, formData: FormData) {
   const session = await getServerSession(authOptions)
+  const userId = session?.user ? (session.user as { id: string }).id : null
 
-  if (!session?.user?.id) {
+  if (!userId) {
     return { error: "You must be logged in to comment on a blog post" }
   }
 
@@ -110,7 +115,7 @@ export async function commentOnBlog(blogId: string, formData: FormData) {
   }
 
   try {
-    await blogService.commentOnBlog(blogId, session.user.id, content)
+    await blogService.commentOnBlog(blogId, userId, content)
 
     revalidatePath(`/blog/${blogId}`)
     return { success: true }

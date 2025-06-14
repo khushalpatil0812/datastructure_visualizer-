@@ -1,65 +1,81 @@
-"use client"
+// components/like-button.tsx
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-import { useRouter } from "next/navigation"
-import { ThumbsUp } from "lucide-react"
+import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
+import { ThumbsUp } from "lucide-react";
 
 interface LikeButtonProps {
-  itemId: string
-  likeCount: number
-  likeAction: () => Promise<any>
-  requireAuth?: boolean
+  itemId: string;
+  initialLikeCount: number;  // Changed from likeCount to initialLikeCount
+  likeAction: () => Promise<{ liked: boolean; error?: string }>;
+  requireAuth?: boolean;
 }
 
-export default function LikeButton({ itemId, likeCount, likeAction, requireAuth = false }: LikeButtonProps) {
-  const [isLiking, setIsLiking] = useState(false)
-  const [likes, setLikes] = useState(likeCount)
-  const { toast } = useToast()
-  const router = useRouter()
+export default function LikeButton({ 
+  itemId, 
+  initialLikeCount, 
+  likeAction, 
+  requireAuth = false 
+}: LikeButtonProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [optimisticLikes, setOptimisticLikes] = useState(initialLikeCount);
+  const { toast } = useToast();
+  const router = useRouter();
 
-  async function handleLike() {
+  const handleLike = async () => {
     if (requireAuth) {
       toast({
         title: "Authentication required",
         description: "Please sign in to like this post",
-      })
-      router.push("/login")
-      return
+      });
+      router.push("/login");
+      return;
     }
 
-    setIsLiking(true)
-
+    setIsLoading(true);
     try {
-      const result = await likeAction()
-
+      // Optimistic update
+      setOptimisticLikes(prev => prev + 1);
+      
+      const result = await likeAction();
+      
       if (result.error) {
         toast({
           title: "Error",
           description: result.error,
           variant: "destructive",
-        })
-        return
+        });
+        // Revert optimistic update
+        setOptimisticLikes(prev => prev - 1);
+      } else if (!result.liked) {
+        // If unlike action
+        setOptimisticLikes(prev => prev - 1);
       }
-
-      // Update like count based on the action result
-      setLikes((prev) => (result.liked ? prev + 1 : prev - 1))
     } catch (error) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: "Something went wrong",
         variant: "destructive",
-      })
+      });
+      setOptimisticLikes(prev => prev - 1);
     } finally {
-      setIsLiking(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <Button variant="ghost" size="sm" onClick={handleLike} disabled={isLiking} className="flex items-center gap-1">
-      <ThumbsUp className={`h-4 w-4 ${isLiking ? "animate-pulse" : ""}`} />
-      <span>{likes}</span>
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={handleLike} 
+      disabled={isLoading || requireAuth}
+      className="flex items-center gap-1"
+    >
+      <ThumbsUp className={`h-4 w-4 ${isLoading ? "animate-pulse" : ""}`} />
+      <span>{optimisticLikes}</span>
     </Button>
-  )
+  );
 }

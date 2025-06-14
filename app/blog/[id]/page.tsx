@@ -1,22 +1,42 @@
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../../api/auth/[...nextauth]/route"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MessageSquare, ArrowLeft } from "lucide-react"
-import * as blogService from "@/lib/blog"
-import BlogCommentForm from "@/components/blog-comment-form"
-import LikeButton from "@/components/like-button"
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../api/auth/[...nextauth]/route";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MessageSquare, ArrowLeft } from "lucide-react";
+import * as blogService from "@/lib/blog";
+import BlogCommentForm from "@/components/blog-comment-form";
+import LikeButton from "@/components/like-button";
+
+interface BlogComment {
+  id: string;
+  blog_id: string;
+  user_id: string;
+  content: string;
+  created_at: Date;
+  author_name: string;
+  author_image: string;
+}
+
+interface SessionUser {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
 
 export default async function BlogDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
-  const blog = await blogService.getBlogById(params.id)
+  const session = await getServerSession(authOptions);
+  const blog = await blogService.getBlogById(params.id);
 
   if (!blog) {
-    notFound()
+    notFound();
   }
+
+  // Safely get user ID with proper typing
+  const userId = (session?.user as SessionUser)?.id || "";
 
   return (
     <div className="container py-8 max-w-4xl">
@@ -34,7 +54,9 @@ export default async function BlogDetailPage({ params }: { params: { id: string 
             </Avatar>
             <div>
               <p className="text-sm font-medium">{blog.author_name}</p>
-              <p className="text-xs text-muted-foreground">{new Date(blog.created_at).toLocaleDateString()}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(blog.created_at).toLocaleDateString()}
+              </p>
             </div>
           </div>
           <CardTitle className="text-3xl">{blog.title}</CardTitle>
@@ -48,12 +70,24 @@ export default async function BlogDetailPage({ params }: { params: { id: string 
         </CardContent>
         <CardFooter className="flex justify-between border-t pt-6">
           <div className="flex items-center gap-4">
-            <LikeButton
-              itemId={blog.id}
-              likeCount={blog.like_count}
-              likeAction={() => blogService.likeBlog(blog.id, session?.user?.id || "")}
-              requireAuth={!session}
-            />
+           <LikeButton
+  itemId={blog.id}
+  initialLikeCount={blog.like_count}
+  likeAction={async () => {
+    try {
+      const result = await blogService.likeBlog(blog.id, userId);
+      // Remove the explicit 'liked: true' since it comes from the result
+      return { ...result };
+    } catch (error) {
+      return { 
+        liked: false, 
+        error: error instanceof Error ? error.message : "Failed to like post" 
+      };
+    }
+  }}
+  requireAuth={!session}
+/>
+
             <div className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" />
               <span>{blog.comments?.length || 0}</span>
@@ -80,7 +114,7 @@ export default async function BlogDetailPage({ params }: { params: { id: string 
 
         <div className="space-y-4 mt-6">
           {blog.comments && blog.comments.length > 0 ? (
-            blog.comments.map((comment: any) => (
+            blog.comments.map((comment: BlogComment) => (
               <Card key={comment.id}>
                 <CardHeader className="py-4">
                   <div className="flex items-center gap-2">
@@ -107,5 +141,5 @@ export default async function BlogDetailPage({ params }: { params: { id: string 
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -7,13 +7,14 @@ import * as practiceService from "@/lib/practice"
 
 export async function toggleProblemCompletion(problemId: string) {
   const session = await getServerSession(authOptions)
+  const userId = session?.user ? (session.user as { id: string }).id : null
 
-  if (!session?.user?.id) {
+  if (!userId) {
     return { error: "You must be logged in to track progress" }
   }
 
   try {
-    const result = await practiceService.toggleProblemCompletion(problemId, session.user.id)
+    const result = await practiceService.toggleProblemCompletion(problemId, userId)
 
     revalidatePath("/practice")
     revalidatePath("/dashboard")
@@ -26,7 +27,7 @@ export async function toggleProblemCompletion(problemId: string) {
 
 export async function getFilteredProblems(formData: FormData) {
   const session = await getServerSession(authOptions)
-  const userId = session?.user?.id
+  const userId = session?.user ? (session.user as { id: string }).id : undefined
 
   const topic = formData.get("topic") as string | undefined
   const difficulty = formData.get("difficulty") as string | undefined
