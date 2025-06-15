@@ -6,10 +6,12 @@ import { authOptions } from "../api/auth/[...nextauth]/route"
 import db from "@/lib/db"
 import { v4 as uuidv4 } from "uuid"
 
+
 // Type definitions
-type AdminActionSuccess<T = {}> = { success: true } & T;
-type AdminActionError = { success: false; error: string };
-type AdminActionResult<T = {}> = AdminActionSuccess<T> | AdminActionError;
+export type AdminActionSuccess<T = {}> = { success: true } & T;
+export type AdminActionError = { success: false; error: string };
+export type AdminActionResult<T = {}> = AdminActionSuccess<T> | AdminActionError;
+
 
 interface SessionUser {
   id: string;

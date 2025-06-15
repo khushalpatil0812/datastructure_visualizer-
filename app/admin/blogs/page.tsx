@@ -1,12 +1,13 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
-import { getAdminBlogs, deleteAdminBlog } from "@/app/actions/admin-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { getAdminBlogs, deleteAdminBlog, type AdminActionResult } from "@/app/actions/admin-actions";
+
+
+
 import {
   Pagination,
   PaginationContent,
@@ -30,9 +31,31 @@ import { Search, Trash2, Plus, Eye, ThumbsUp, MessageSquare } from "lucide-react
 import { toast } from "@/components/ui/use-toast"
 import Link from "next/link"
 
+// Define all types directly in the component file
+interface Blog {
+  id: string
+  title: string
+  author_name: string
+  created_at: string | Date
+  like_count: number
+  comment_count: number
+}
+
+interface PaginationData {
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
+interface BlogsResponse {
+  blogs: Blog[]
+  pagination: PaginationData
+}
+
 export default function BlogsPage() {
-  const [blogs, setBlogs] = useState<any[]>([])
-  const [pagination, setPagination] = useState({
+  const [blogs, setBlogs] = useState<Blog[]>([])
+  const [pagination, setPagination] = useState<PaginationData>({
     total: 0,
     page: 1,
     limit: 10,
@@ -43,20 +66,29 @@ export default function BlogsPage() {
 
   const fetchBlogs = async (page = 1, searchTerm = search) => {
     setLoading(true)
-    const result = await getAdminBlogs(page, pagination.limit, searchTerm)
+    try {
+      const result = await getAdminBlogs(page, pagination.limit, searchTerm)
 
-    if (result.error) {
+      if (result.success) {
+  const { blogs, pagination } = result;
+  setBlogs(blogs)
+  setPagination(pagination)
+}else {
+        toast({
+          title: "Error",
+          description: result.error,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
       toast({
         title: "Error",
-        description: result.error,
+        description: "Failed to fetch blogs",
         variant: "destructive",
       })
-    } else {
-      setBlogs(result.blogs)
-      setPagination(result.pagination)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -69,20 +101,28 @@ export default function BlogsPage() {
   }
 
   const handleDeleteBlog = async (blogId: string) => {
-    const result = await deleteAdminBlog(blogId)
+    try {
+      const result = await deleteAdminBlog(blogId)
 
-    if (result.error) {
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Blog deleted successfully",
+        })
+        fetchBlogs(pagination.page)
+      } else {
+        toast({
+          title: "Error",
+          description: result.error,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
       toast({
         title: "Error",
-        description: result.error,
+        description: "Failed to delete blog",
         variant: "destructive",
       })
-    } else {
-      toast({
-        title: "Success",
-        description: "Blog deleted successfully",
-      })
-      fetchBlogs(pagination.page)
     }
   }
 

@@ -1,22 +1,45 @@
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../../api/auth/[...nextauth]/route"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MessageSquare, ArrowLeft } from "lucide-react"
-import * as communityService from "@/lib/community"
-import CommunityCommentForm from "@/components/community-comment-form"
-import LikeButton from "@/components/like-button"
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../api/auth/[...nextauth]/route";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MessageSquare, ArrowLeft } from "lucide-react";
+import * as communityService from "@/lib/community";
+import CommunityCommentForm from "@/components/community-comment-form";
+import LikeButton from "@/components/like-button";
+
+interface Comment {
+  id: string;
+  content: string;
+  created_at: Date | string;
+  author_id: string;
+  author_name: string;
+  author_image: string | null;
+}
+
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+  created_at: Date | string;
+  author_id: string;
+  author_name: string;
+  author_image: string | null;
+  like_count: number;
+  comments: Comment[];
+}
 
 export default async function CommunityPostDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
-  const post = await communityService.getPostById(params.id)
+  const session = await getServerSession(authOptions);
+  const post = await communityService.getPostById(params.id) as Post;
 
   if (!post) {
-    notFound()
+    notFound();
   }
+
+  const userId = (session?.user as any)?.id || "";
 
   return (
     <div className="container py-8 max-w-4xl">
@@ -34,14 +57,16 @@ export default async function CommunityPostDetailPage({ params }: { params: { id
             </Avatar>
             <div>
               <p className="text-sm font-medium">{post.author_name}</p>
-              <p className="text-xs text-muted-foreground">{new Date(post.created_at).toLocaleDateString()}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(post.created_at).toLocaleDateString()}
+              </p>
             </div>
           </div>
           <CardTitle className="text-3xl">{post.title}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="prose dark:prose-invert max-w-none">
-            {post.content.split("\n").map((paragraph: string, i: number) => (
+            {post.content.split("\n").map((paragraph, i) => (
               <p key={i}>{paragraph}</p>
             ))}
           </div>
@@ -50,8 +75,8 @@ export default async function CommunityPostDetailPage({ params }: { params: { id
           <div className="flex items-center gap-4">
             <LikeButton
               itemId={post.id}
-              likeCount={post.like_count}
-              likeAction={() => communityService.likePost(post.id, session?.user?.id || "")}
+              initialLikeCount={post.like_count}
+              likeAction={() => communityService.likePost(post.id, userId)}
               requireAuth={!session}
             />
             <div className="flex items-center gap-1">
@@ -80,7 +105,7 @@ export default async function CommunityPostDetailPage({ params }: { params: { id
 
         <div className="space-y-4 mt-6">
           {post.comments && post.comments.length > 0 ? (
-            post.comments.map((comment: any) => (
+            post.comments.map((comment) => (
               <Card key={comment.id}>
                 <CardHeader className="py-4">
                   <div className="flex items-center gap-2">
@@ -107,5 +132,5 @@ export default async function CommunityPostDetailPage({ params }: { params: { id
         </div>
       </div>
     </div>
-  )
+  );
 }

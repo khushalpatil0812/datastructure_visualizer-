@@ -5,49 +5,53 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "../api/auth/[...nextauth]/route"
 import * as blogService from "@/lib/blog"
 
-export async function createBlog(formData: FormData) {
-  const session = await getServerSession(authOptions)
-  const userId = session?.user ? (session.user as { id: string }).id : null
 
-  if (!userId) {
-    return { error: "You must be logged in to create a blog post" }
+// Define consistent response types
+type ActionResponse<T = {}> = 
+  | { success: true; data: T }
+  | { success: false; error: string }
+
+export async function createBlog(formData: FormData): Promise<ActionResponse<{ id: string }>> {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user?.id) {
+    return { success: false, error: "You must be logged in to create a blog post" }
   }
 
   const title = formData.get("title") as string
   const content = formData.get("content") as string
 
   if (!title || !content) {
-    return { error: "Title and content are required" }
+    return { success: false, error: "Title and content are required" }
   }
 
   try {
     const result = await blogService.createBlog({
       title,
       content,
-      authorId: userId,
+      authorId: session.user.id,
     })
 
     revalidatePath("/blog")
-    return { success: true, id: result.id }
+    return { success: true, data: { id: result.id } }
   } catch (error) {
     console.error("Error creating blog:", error)
-    return { error: "Failed to create blog post" }
+    return { success: false, error: "Failed to create blog post" }
   }
 }
 
-export async function updateBlog(blogId: string, formData: FormData) {
+export async function updateBlog(blogId: string, formData: FormData): Promise<ActionResponse> {
   const session = await getServerSession(authOptions)
-  const userId = session?.user ? (session.user as { id: string }).id : null
-
-  if (!userId) {
-    return { error: "You must be logged in to update a blog post" }
+  
+  if (!session?.user?.id) {
+    return { success: false, error: "You must be logged in to update a blog post" }
   }
 
   const title = formData.get("title") as string
   const content = formData.get("content") as string
 
   if (!title || !content) {
-    return { error: "Title and content are required" }
+    return { success: false, error: "Title and content are required" }
   }
 
   try {
@@ -55,72 +59,69 @@ export async function updateBlog(blogId: string, formData: FormData) {
 
     revalidatePath(`/blog/${blogId}`)
     revalidatePath("/blog")
-    return { success: true }
+    return { success: true, data: {} }
   } catch (error) {
     console.error("Error updating blog:", error)
-    return { error: "Failed to update blog post" }
+    return { success: false, error: "Failed to update blog post" }
   }
 }
 
-export async function deleteBlog(blogId: string) {
+export async function deleteBlog(blogId: string): Promise<ActionResponse> {
   const session = await getServerSession(authOptions)
-  const userId = session?.user ? (session.user as { id: string }).id : null
-
-  if (!userId) {
-    return { error: "You must be logged in to delete a blog post" }
+  
+  if (!session?.user?.id) {
+    return { success: false, error: "You must be logged in to delete a blog post" }
   }
 
   try {
     await blogService.deleteBlog(blogId)
 
     revalidatePath("/blog")
-    return { success: true }
+    return { success: true, data: {} }
   } catch (error) {
     console.error("Error deleting blog:", error)
-    return { error: "Failed to delete blog post" }
+    return { success: false, error: "Failed to delete blog post" }
   }
 }
 
-export async function likeBlog(blogId: string) {
+export async function likeBlog(blogId: string): Promise<ActionResponse<{ liked: boolean }>> {
   const session = await getServerSession(authOptions)
-  const userId = session?.user ? (session.user as { id: string }).id : null
-
-  if (!userId) {
-    return { error: "You must be logged in to like a blog post" }
+  
+  if (!session?.user?.id) {
+    return { success: false, error: "You must be logged in to like a blog post" }
   }
 
   try {
-    const result = await blogService.likeBlog(blogId, userId)
+    const result = await blogService.likeBlog(blogId, session.user.id)
 
     revalidatePath(`/blog/${blogId}`)
-    return result
+    return { success: true, data: { liked: result.liked } }
   } catch (error) {
     console.error("Error liking blog:", error)
-    return { error: "Failed to like blog post" }
+    return { success: false, error: "Failed to like blog post" }
   }
 }
 
-export async function commentOnBlog(blogId: string, formData: FormData) {
+export async function commentOnBlog(blogId: string, formData: FormData): Promise<ActionResponse> {
   const session = await getServerSession(authOptions)
-  const userId = session?.user ? (session.user as { id: string }).id : null
-
-  if (!userId) {
-    return { error: "You must be logged in to comment on a blog post" }
+  
+  if (!session?.user?.id) {
+    return { success: false, error: "You must be logged in to comment on a blog post" }
   }
 
   const content = formData.get("content") as string
 
   if (!content) {
-    return { error: "Comment content is required" }
+    return { success: false, error: "Comment content is required" }
   }
 
   try {
-    await blogService.commentOnBlog(blogId, userId, content)
+    await blogService.commentOnBlog(blogId, session.user.id, content)
 
     revalidatePath(`/blog/${blogId}`)
-    return { success: true }
+    return { success: true, data: {} }
   } catch (error) {
     console.error("Error commenting on blog:", error)
-    return { error: "Failed to add comment" }
+    return { success: false, error: "Failed to add comment" }
   }
 }

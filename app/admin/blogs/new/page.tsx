@@ -22,7 +22,7 @@ export default function NewBlogPage() {
     const formData = new FormData(e.currentTarget)
     const result = await createAdminBlog(formData)
 
-    if (result.error) {
+    if ("error" in result) {
       toast({
         title: "Error",
         description: result.error,

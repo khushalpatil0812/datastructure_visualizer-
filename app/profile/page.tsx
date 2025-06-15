@@ -34,21 +34,22 @@ export default async function ProfilePage() {
 
   try {
     // Get completed problems count
-    const completedProblemsResult = await db.query<CountResult[]>(
-      "SELECT COUNT(*) as count FROM user_problems WHERE user_id = ? AND status = 'completed'",
-      [user.id]
-    );
+   const completedProblemsResult = await db.query<CountResult[]>(
+  "SELECT COUNT(*) as count FROM user_progress WHERE user_id = ? AND completed = 1",
+  [user.id]
+);
     completedProblems = completedProblemsResult[0]?.count || 0;
+    
 
     // Get total problems count
     const totalProblemsResult = await db.query<CountResult[]>(
-      "SELECT COUNT(*) as count FROM problems"
-    );
+  "SELECT COUNT(*) as count FROM practice_problems"
+);
     totalProblems = totalProblemsResult[0]?.count || 0;
 
     // Get blog posts count
     const blogPostsResult = await db.query<CountResult[]>(
-      "SELECT COUNT(*) as count FROM blog_posts WHERE author_id = ?",
+      "SELECT COUNT(*) as count FROM blogs WHERE author_id = ?",
       [user.id]
     );
     blogPosts = blogPostsResult[0]?.count || 0;
